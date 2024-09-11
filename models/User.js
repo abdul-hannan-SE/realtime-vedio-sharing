@@ -4,9 +4,9 @@ const bcrypt = require("bcrypt");
 const Schema = mongoose.Schema;
 const userSchema = new Schema({
   username: { type: String, required: true },
-  email: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  imageUrl: { type: String },
+  imageUrl: { type: String, required: true },
 });
 userSchema.pre("save", async function () {
   this.password = await bcrypt.hash(this.password, 10);

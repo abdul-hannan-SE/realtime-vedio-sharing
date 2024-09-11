@@ -4,10 +4,21 @@ const authController = require("../controllers/authController");
 const multer = require("../uploader/multer");
 const path = require("path");
 const { check } = require("express-validator");
+const fs = require("fs");
+
+const directoryPath = path.join(
+  __dirname,
+  "..",
+  "resources",
+  "images",
+  "profile_pics"
+);
+
+fs.mkdirSync(directoryPath, { recursive: true });
 
 const upload = multer.setImage({
   maxFileSize: 1 * 1024 * 1024,
-  path: path.join(__dirname, "..", "resources", "images"),
+  path: directoryPath,
 });
 
 router.get("/user", authController.getUser);
@@ -25,7 +36,15 @@ router.post(
       .notEmpty()
       .isLength({ min: 6, max: 10 })
       .withMessage("Password should be 6-10 char long"),
-    check("username").notEmpty().withMessage("Username cannot be empty"),
+    check("username")
+      .notEmpty()
+      .withMessage("Username cannot be empty")
+      .isLength({ min: 6, max: 15 })
+      .withMessage("Username must be between 6 and 15 characters long")
+      .matches(/^[a-zA-Z][a-zA-Z0-9]*$/)
+      .withMessage(
+        "Username should not start with a number and can only contain alphanumeric characters"
+      ),
   ],
   authController.signUp
 );
