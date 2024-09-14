@@ -16,7 +16,7 @@ const directoryPath = path.join(
 
 fs.mkdirSync(directoryPath, { recursive: true });
 
-const upload = multer.setImage({
+const upload = multer.setFile({
   maxFileSize: 1 * 1024 * 1024,
   path: directoryPath,
 });
@@ -41,7 +41,7 @@ router.post(
       .withMessage("Username cannot be empty")
       .isLength({ min: 6, max: 15 })
       .withMessage("Username must be between 6 and 15 characters long")
-      .matches(/^[a-zA-Z][a-zA-Z0-9]*$/)
+      .matches(/^[a-zA-Z][a-zA-Z0-9 ]*$/)
       .withMessage(
         "Username should not start with a number and can only contain alphanumeric characters"
       ),

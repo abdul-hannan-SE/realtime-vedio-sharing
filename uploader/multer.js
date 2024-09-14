@@ -1,6 +1,10 @@
 const multer = require("multer");
 
-exports.setImage = ({ maxSize, path }) => {
+exports.setFile = ({
+  maxSize,
+  path,
+  mimetypes = ["image/jpeg", "image/png", "image/jpg"],
+}) => {
   const storage = multer.diskStorage({
     destination: function (req, file, cb) {
       cb(null, path);
@@ -15,11 +19,7 @@ exports.setImage = ({ maxSize, path }) => {
   const upload = multer({
     storage: storage,
     fileFilter: function (req, file, cb) {
-      if (
-        file.mimetype === "image/jpeg" ||
-        file.mimetype === "image/png" ||
-        file.mimetype === "image/jpg"
-      ) {
+      if (mimetypes.includes(file.mimetype)) {
         cb(null, true);
       } else {
         cb(new Error("Invalid image type (allowed types : jpeg, jpg, png)"));

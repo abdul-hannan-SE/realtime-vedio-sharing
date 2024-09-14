@@ -16,6 +16,7 @@ exports.signUp = async (req, res, next) => {
     }
 
     const { username, email, password } = req.body;
+
     const newUser = new User({
       username: username,
       email: email,
@@ -25,10 +26,9 @@ exports.signUp = async (req, res, next) => {
       newUser.imageUrl =
         "http://localhost:3000/resources/images/" + req.file.filename;
     } else {
-      res.status(400).json({
-        success: false,
-        message: "Image is required",
-      });
+      const error = new Error("Image is required");
+      error.statusCode = 400;
+      throw error;
     }
     await newUser.save();
 
@@ -54,16 +54,18 @@ exports.signUp = async (req, res, next) => {
     if (err.message.startsWith("E11000 duplicate key error")) {
       err.message = "E-mail already in use";
     }
-    clearFile(
-      path.join(
-        __dirname,
-        "..",
-        "resources",
-        "images",
-        "profile_pics",
-        req.file.filename
-      )
-    );
+    if (req.file) {
+      clearFile(
+        path.join(
+          __dirname,
+          "..",
+          "resources",
+          "images",
+          "profile_pics",
+          req.file.filename
+        )
+      );
+    }
     next(err);
   }
 };

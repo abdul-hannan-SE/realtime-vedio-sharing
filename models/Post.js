@@ -4,6 +4,7 @@ const Schema = mongoose.Schema;
 const postSchema = new Schema(
   {
     creator: { type: Schema.Types.ObjectId, required: true },
+    description: { type: String, required: true },
     videoUrl: { type: String, required: true },
     comments: [
       {
