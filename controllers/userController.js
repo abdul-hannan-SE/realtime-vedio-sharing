@@ -1,6 +1,6 @@
 const { validationResult } = require("express-validator");
 const { clearFile } = require("../utils/common");
-const Post = require("../models/Post");
+const Post = require("../models/post.model");
 const fs = require("fs");
 const SocketManager = require("../socket/socket");
 

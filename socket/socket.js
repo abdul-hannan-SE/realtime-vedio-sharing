@@ -1,5 +1,4 @@
 const socketio = require("socket.io");
-const { EventEmitter } = require("events");
 
 class SocketManager {
   static io = null;

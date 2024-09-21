@@ -1,18 +1,20 @@
-const User = require("../models/User");
-const { createSecretToken } = require("../utils/jwt");
+const User = require("../models/user.model");
+const { createSecretToken } = require("../middlewares/jwt");
 const { validationResult } = require("express-validator");
 const bcrypt = require("bcrypt");
 const path = require("path");
 const fs = require("fs");
-const { clearFile } = require("../utils/common");
-exports.signUp = async (req, res, next) => {
-  try {
+
+const { asyncHandler } = require("../utils/asyncHandler");
+const { ApiError } = require("../utils/ApiError");
+const { ApiResponse } = require("../utils/ApiResponse");
+
+exports.signUp = asyncHandler(
+  async (req, res, next) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
-      const error = new Error(err.array()[0].msg);
-      error.statusCode = 422;
-      error.data = err.message;
-      throw error;
+      const message = new Error(err.array()[0].msg);
+      throw new ApiError(422, message, "Vaalidation Error");
     }
 
     const { username, email, password } = req.body;
@@ -26,9 +28,7 @@ exports.signUp = async (req, res, next) => {
       newUser.imageUrl =
         "http://localhost:3000/resources/images/" + req.file.filename;
     } else {
-      const error = new Error("Image is required");
-      error.statusCode = 400;
-      throw error;
+      throw new ApiError(400, "Image is required,");
     }
     await newUser.save();
 
@@ -40,63 +40,44 @@ exports.signUp = async (req, res, next) => {
         maxAge: 24 * 60 * 60 * 1000, // Cookie expiration (1 day)
       }
     );
-    res.status(200).json({
-      user: {
-        username: newUser.username,
-        email: newUser.email,
-        id: newUser._id,
-      },
+    res.status(201).json(new ApiResponse(200, "User created successfully", {
+      username: newUser.username,
+      email: newUser.email,
+      id: newUser._id,
       token: token,
-      success: true,
-    });
-  } catch (err) {
-    if (!err.statusCode) err.statusCode = 500;
-    if (err.message.startsWith("E11000 duplicate key error")) {
-      err.message = "E-mail already in use";
-    }
-    if (req.file) {
-      clearFile(
-        path.join(
-          __dirname,
-          "..",
-          "resources",
-          "images",
-          "profile_pics",
-          req.file.filename
-        )
-      );
-    }
-    next(err);
+    },))
   }
-};
+)
 
-exports.login = async (req, res, next) => {
-  try {
+
+
+exports.login = asyncHandler(
+  async (req, res, next) => {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email: email }).select("-__v");
-
+    const user = await User.findOne({ email }).select("-__v");
     if (!user) {
-      res.status(404).json({ message: "User not found", success: false });
-    } else {
-      const isValid = await bcrypt.compare(password, user.password);
-      if (isValid) {
-        const token = createSecretToken(user._id);
-        res.cookie("token", token);
-        res
-          .status(200)
-          .json({ user: user._doc, success: true, message: "Login success" });
-      } else
-        res.status(200).json({ message: "Invalid password", success: false });
+      throw new ApiError(404, "User not found");
     }
-  } catch (err) {
-    if (!err.statusCode) err.statusCode = 500;
-    next(err);
+
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      throw new ApiError(401, "Invalid password", "Validation Failed");
+    }
+
+    const token = createSecretToken(user._id);
+    res.cookie("token", token);
+    res.status(200).json(new ApiResponse(200, "Login successful", {
+      user: user._doc,
+      token: token,
+    }));
   }
-};
-exports.getUser = async (req, res, next) => {
-  const email = req.query.email;
-  const user = await User.findOne({ email: email });
-  if (!user) res.status(404).json({ sucess: false, message: "User not found" });
-  res.status(200).json({ user: user, success: true });
-};
+);
+
+
+// exports.getUser = async (req, res, next) => {
+//   const email = req.query.email;
+//   const user = await User.findOne({ email: email });
+//   if (!user) res.status(404).json({ sucess: false, message: "User not found" });
+//   res.status(200).json({ user: user, success: true });
+// };
