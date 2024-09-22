@@ -21,7 +21,7 @@ const upload = multer.setFile({
   path: directoryPath,
 });
 
-router.get("/user", authController.getUser);
+// router.get("/user", authController.getUser);
 
 router.post(
   "/signUp",

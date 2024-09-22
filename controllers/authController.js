@@ -49,20 +49,16 @@ exports.signUp = asyncHandler(
   }
 )
 
-
-
 exports.login = asyncHandler(
   async (req, res, next) => {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email }).select("-__v");
     if (!user) {
       throw new ApiError(404, "User not found");
     }
-
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) {
-      throw new ApiError(401, "Invalid password", "Validation Failed");
+    const result = await user.isPasswordValid(password);
+    if (!result) {
+      throw new ApiError(401, "Invalid password", "Validation Error");
     }
 
     const token = createSecretToken(user._id);

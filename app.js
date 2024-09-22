@@ -1,16 +1,20 @@
 const express = require("express");
+require("dotenv").config();
 const cors = require("cors");
 const mongoose = require("mongoose");
 const path = require("path");
-const URL="mongodb+srv://root:root@databases.ovq7d.mongodb.net/?retryWrites=true&w=majority&appName=videoApp"
-
+const URL = process.env.URL;
 const app = express();
 const authRoute = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
+
 // const morgan = require("morgan");
+
 const serverInstance = require("http").createServer(app);
 const socket = require("./socket/socket");
+
 socket.init(serverInstance);
+app.use(express.json());
 app.use(
   cors({
     origin: true,
@@ -33,13 +37,13 @@ app.use("/user", userRoutes);
 // app.use(morgan());
 
 app.use((error, req, res, next) => {
-  if (!err.statusCode) err.statusCode = 500;
-  if(!err.message) err.message="Something went wrong"
-  res.status(error.statusCode).json(error);
+  if (!error.statusCode) error.statusCode = 500;
+  if (!error.message) error.message = "Something went wrong";
+  res.status(error.statusCode).json({ err: error, message: error.message });
 });
 
 mongoose.connect(URL).then(() => {
-  serverInstance.listen(5000);
-console.log("Database connected");
+  serverInstance.listen(process.env.PORT);
+  console.log("Database connected");
   console.log("App is listening at port 5000");
 });
