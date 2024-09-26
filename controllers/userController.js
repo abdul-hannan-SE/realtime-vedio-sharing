@@ -2,29 +2,27 @@ const { validationResult } = require("express-validator");
 const { clearFile } = require("../utils/common");
 const Post = require("../models/post.model");
 const fs = require("fs");
+const { ApiError } = require("../utils/ApiError");
+const { ApiResponse } = require("../utils/ApiResponse");
+const { asyncHandler } = require("../utils/asyncHandler");
 const SocketManager = require("../socket/socket");
 
-exports.uploadPost = async (req, res, next) => {
-  const socket = SocketManager.getSocket();
-  const io = SocketManager.getIO();
+exports.uploadPost = asyncHandler(
+  async (req, res, next) => {
+    const socket = SocketManager.getSocket();
+    const io = SocketManager.getIO();
 
-  const userId = req.body.userId;
-  const currentUser = SocketManager.users.find(
-    (user) => user.userId === userId
-  );
+    const userId = req.body.userId;
+    const currentUser = SocketManager.users.find(
+      (user) => user.userId === userId
+    );
+    const err = validationResult(req);
+    if (!err.isEmpty()) {
+      throw new ApiError(422, `${err.message}`);
+    }
 
-  try {
-    // const err = validationResult(req);
-    // if (!err.isEmpty()) {
-    //   const error = new Error(err.array()[0].msg);
-    //   error.statusCode = 422;
-    //   error.data = err.message;
-    //   throw error;
-    // }
     if (!req.file) {
-      const error = new Error("Video is not attched");
-      error.statusCode = 400;
-      throw error;
+      throw new ApiError(400, "Video file not attached")
     }
     const fileSize = req.file.size;
     let uploadedSize = 0;
@@ -52,23 +50,12 @@ exports.uploadPost = async (req, res, next) => {
 
       await newPost.save();
       io.emit("uploadProgress", { progress: 100 });
-      res.status(200).json({ post: newPost, success: true });
+
+      res.status(200).json(new ApiResponse(201, "Post created", newPost));
     });
     readStream.pipe(writeStream);
     readStream.on("error", (err) => {
-      if (!err.statusCode) err.statusCode = 500;
-      if (req.file) {
-        clearFile(destinationPath); // Clear the file if an error occurs
-      }
-      next(err);
+      throw new ApiError(500, "Error while creating post please try again");
     });
-  } catch (err) {
-    if (!err.statusCode) err.statusCode = 500;
-    if (req.file) {
-      clearFile(
-        path.join(__dirname, "..", "resources", "videos", req.file.filename)
-      );
-    }
-    next(err);
   }
-};
+)

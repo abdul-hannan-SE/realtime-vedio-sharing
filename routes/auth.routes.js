@@ -5,7 +5,7 @@ const multer = require("../middlewares/multer");
 const path = require("path");
 const { check } = require("express-validator");
 const fs = require("fs");
-
+const { verifyJWT } = require("../middlewares/jwt")
 const directoryPath = path.join(
   __dirname,
   "..",
@@ -34,8 +34,8 @@ router.post(
       .withMessage("E-mail address invalid"),
     check("password")
       .notEmpty()
-      .isLength({ min: 6, max: 10 })
-      .withMessage("Password should be 6-10 char long"),
+      .isLength({ min: 6, max: 12 })
+      .withMessage("Password should be 6-12 char long"),
     check("username")
       .notEmpty()
       .withMessage("Username cannot be empty")
@@ -59,9 +59,12 @@ router.post(
       .withMessage("E-mail address invalid"),
     check("password")
       .notEmpty()
-      .isLength({ min: 6, max: 10 })
-      .withMessage("Password should be 6-10 char long"),
+      .isLength({ min: 6, max: 12 })
+      .withMessage("Password should be 6-12 char long"),
   ],
   authController.login
 );
+
+router.post("/logOut", verifyJWT, authController.logOut);
+
 module.exports = router;

@@ -1,25 +1,30 @@
+// In your middleware file (e.g., jwt.js)
 const jwt = require("jsonwebtoken");
-
-const { ApiError } = require("../utils/ApiError")
-
+const User = require("../models/user.model");
+const { ApiError } = require("../utils/ApiError");
+const { asyncHandler } = require("../utils/asyncHandler");
 require("dotenv").config();
 
-exports.createSecretToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_TOKEN_EXPIRY });
-};
-
-exports.authJWT = (req, res, next) => {
-  const token = req?.cookies?.token;
-  if (!token) {
-    next(new ApiError(401, "User could not authenticated", "JWT Error"))
-  }
-  jwt.verify(token, process.env.JWT_SECRET, async (err, data) => {
-    if (err) {
-      return res
-        .status(401)
-        .json({ status: false, message: "Authentication Failed" });
-    } else {
-      next();
+exports.verifyJWT = asyncHandler(async (req, _, next) => {
+  try {
+    const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
+    if (!token) {
+      throw new ApiError(401, "Access Token not found", "JWT Error");
     }
-  });
-};
+
+    jwt.verify(token, process.env.JWT_SECRET, async (err, decodedToken) => {
+      if (err) {
+        throw new ApiError(401, "Authentication Failed", "JWT Error");
+      } else {
+        const user = await User.findById(decodedToken?._id).select("-password -refreshToken -__v");
+        if (!user) {
+          throw new ApiError(401, "Invalid Access Token");
+        }
+        req.user = user;
+        next();
+      }
+    });
+  } catch (err) {
+    next(err); // Pass the error to the error handler
+  }
+});

@@ -3,6 +3,7 @@ require("dotenv").config();
 const cors = require("cors");
 const mongoose = require("mongoose");
 const path = require("path");
+const cookieParser = require("cookie-parser");
 const URL = process.env.URL;
 const app = express();
 const authRoute = require("./routes/auth.routes");
@@ -14,6 +15,7 @@ const serverInstance = require("http").createServer(app);
 const socket = require("./socket/socket");
 
 socket.init(serverInstance);
+
 app.use(express.json());
 app.use(
   cors({
@@ -22,7 +24,7 @@ app.use(
   })
 );
 app.use(express.json());
-
+app.use(cookieParser());
 app.use(
   "/resources/images/profile_pics",
   express.static(path.join(__dirname, "resources", "images", "profile_pics"))

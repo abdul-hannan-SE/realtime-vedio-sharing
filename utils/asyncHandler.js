@@ -1,5 +1,6 @@
 // high level function that returns a function 
 const { clearFile } = require("./common");
+const path = require("path")
 const asyncHandler = (fn) => async (req, res, next) => {
   try {
     return await fn(req, res, next);
@@ -16,7 +17,7 @@ const asyncHandler = (fn) => async (req, res, next) => {
         )
       );
     }
-    console.log(err)
+
     next(err);
   }
 }
