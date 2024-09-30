@@ -7,42 +7,47 @@ const jwt = require("jsonwebtoken");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { ApiError } = require("../utils/ApiError");
 const { ApiResponse } = require("../utils/ApiResponse");
+const { clearFile } = require("../utils/common");
 
-exports.signUp = asyncHandler(
-  async (req, res, next) => {
-    const err = validationResult(req);
-    if (!err.isEmpty()) {
-      const message = new Error(err.array()[0].msg);
-      throw new ApiError(422, message, "Vaalidation Error");
-    }
+const signUp = asyncHandler(async (req, res) => {
+  const err = validationResult(req);
+  if (!err.isEmpty()) {
+    const message = new Error(err.array()[0].msg);
+    throw new ApiError(422, message, "Vaalidation Error");
+  }
 
-    const { username, email, password } = req.body;
-    let hashedPassword;
-    try {
-      hashedPassword = await bcrypt.hash(password, 10);
-    } catch (err) {
-      throw new ApiError(500, "Error durring password encryption", "Bcrypt Error")
-    }
+  const { username, email, password } = req.body;
+  let hashedPassword;
+  try {
+    hashedPassword = await bcrypt.hash(password, 10);
+  } catch (err) {
+    throw new ApiError(
+      500,
+      "Error durring password encryption",
+      "Bcrypt Error"
+    );
+  }
 
-    const newUser = new User({
-      username: username,
-      email: email,
-      password: hashedPassword,
-    });
-    if (req.file) {
-      newUser.imageUrl =
-        "http://localhost:3000/resources/images/" + req.file.filename;
-    } else {
-      throw new ApiError(400, "Image is required,");
-    }
-    await newUser.save();
-    return res.status(201).json(new ApiResponse(200, "User created successfully", {
+  const newUser = new User({
+    username: username,
+    email: email,
+    password: hashedPassword,
+  });
+  if (req.file) {
+    newUser.imageUrl =
+      "http://localhost:3000/resources/images/" + req.file.filename;
+  } else {
+    throw new ApiError(400, "Image is required,");
+  }
+  await newUser.save();
+  return res.status(201).json(
+    new ApiResponse(200, "User created successfully", {
       username: newUser.username,
       email: newUser.email,
       _id: newUser._id,
-    },))
-  }
-)
+    })
+  );
+});
 
 const generateAccessAndRefreshToken = async (user) => {
   try {
@@ -52,64 +57,74 @@ const generateAccessAndRefreshToken = async (user) => {
     await user.save({ validateBeforeSave: false });
     return { accessToken, refreshToken };
   } catch (err) {
-    throw new ApiError(500, "Something went wrong while generating Access and Refresh Token", "JWT Error")
+    throw new ApiError(
+      500,
+      "Something went wrong while generating Access and Refresh Token",
+      "JWT Error"
+    );
   }
-}
+};
 
-exports.login = asyncHandler(
-  async (req, res, next) => {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email }).select("-__v");
-    if (!user) {
-      throw new ApiError(404, "User with given email not exists");
-    }
-    const result = await user.isPasswordValid(password);
-    if (!result) {
-      throw new ApiError(401, "Invalid password", "Validation Error");
-    }
+const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email }).select("-__v");
+  if (!user) {
+    throw new ApiError(404, "User with given email not exists");
+  }
+  const result = await user.isPasswordValid(password);
+  if (!result) {
+    throw new ApiError(401, "Invalid password", "Validation Error");
+  }
 
-    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user);
-    // only modifiable by server
-    const options = {
-      secure: true,
-      httpOnly: true,
-    }
-    return res.status(200)
-      .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", refreshToken, options)
-      .json(new ApiResponse(200, "Login successful", {
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+    user
+  );
+  // only modifiable by server
+  const options = {
+    secure: true,
+    httpOnly: true,
+  };
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(200, "Login successful", {
         user: user._doc,
         accessToken: accessToken,
-        refreshToken: refreshToken
-      }));
-  }
-);
+        refreshToken: refreshToken,
+      })
+    );
+});
 
-
-exports.logOut = asyncHandler(async (req, res, next) => {
-  await User.findByIdAndUpdate(req.user._id, {
-    $set: {
-      refreshToken: undefined,
-    }
-  },
+const logOut = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
+    req.user._id,
     {
-      new: true
-    });
+      $set: {
+        refreshToken: undefined,
+      },
+    },
+    {
+      new: true,
+    }
+  );
 
   const options = {
     httpOnly: true,
-    secure: true
-  }
+    secure: true,
+  };
 
-  return res.status(200)
+  return res
+    .status(200)
     .clearCookie("accessToken", options)
     .clearCookie("refreshToken", options)
-    .json(new ApiResponse(200, "User logged Out success"))
-}
-);
+    .json(new ApiResponse(200, "User logged Out success"));
+});
 
-exports.refreshToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+const refreshToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
   jwt.verify(token, process.env.JWT_SECRET, async (err, decodedToken) => {
     const user = await User.findById(decodedToken._id);
     if (!user) {
@@ -118,23 +133,81 @@ exports.refreshToken = asyncHandler(async (req, res) => {
     if (incomingRefreshToken !== user.refreshToken)
       throw new ApiError("Refresh Token expired or used");
 
-    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user);
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+      user
+    );
     const options = {
       httpOnly: true,
-      secure: true
-    }
+      secure: true,
+    };
 
-    res.status(200)
+    res
+      .status(200)
       .cookie("accessToken", accessToken, options)
       .cookie("refreshToken", refreshToken, options)
-      .json(new ApiResponse(200, "Token refreshed"))
+      .json(new ApiResponse(200, "Token refreshed"));
   });
+});
 
-})
+const updateProfilePic = asyncHandler(async (req, res) => {
+  try {
+    const user = req.user;
+    if (!req.file) {
+      throw new ApiError(404, "Image file is not attached", "Multer error");
+    }
+    const oldImagePath = req.user.imageUrl.replace(
+      "http://localhost:3000/resources/images/",
+      ""
+    );
+    const imageUrl =
+      "http://localhost:3000/resources/images/" + req.file.filename;
+    await user.save();
+    clearFile(
+      path.join(
+        __dirname,
+        "..",
+        "resources",
+        "images",
+        "profile_pics",
+        oldImagePath
+      )
+    );
+    return res.status(200).json(new ApiResponse(200, "Profile pic updated"));
+  } catch (error) {
+    throw new ApiError(
+      500,
+      "Failed to update profile pic",
+      "Internal error",
+      error
+    );
+  }
+});
 
-// exports.getUser = async (req, res, next) => {
-//   const email = req.query.email;
-//   const user = await User.findOne({ email: email });
-//   if (!user) res.status(404).json({ sucess: false, message: "User not found" });
-//   res.status(200).json({ user: user, success: true });
-// };
+const changePassword = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { newPassword, oldPassword } = req.body;
+  const isValid = await user.isPasswordValid(oldPassword);
+  if (!isValid) throw new ApiError(401, "Incorrect password provided");
+  user.password = newPassword;
+  await user.save();
+  return res.status(200).json(new ApiResponse(200, "Password changed"));
+});
+
+const updateUserProfile = asyncHandler(async (req, res) => {
+  const { email, username } = req.body;
+  const user = req.user;
+  user.email = email;
+  user.username = username;
+  await user.save();
+  return res.status(200).json(new ApiResponse(200, "Profile updated"));
+});
+
+module.exports = {
+  signUp,
+  login,
+  logOut,
+  refreshToken,
+  updateProfilePic,
+  changePassword,
+  updateProfilePic,
+};
